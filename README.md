@@ -1,93 +1,45 @@
 # Project-T1-Factor-Analysis
 
+В ноутбуке `01_input_data_research.ipynb` провели первичное исследование предоставленного Excel-графика платежей. Проверили данные, сравнили типы погашения, рассчитали приведённую стоимость потоков и попробовали объяснить месячное изменение показателей. Ниже приведены результаты сохранённого запуска ноутбука.
 
+## Проверка исходных данных
 
-## Getting started
+Из Excel выделили таблицу из 334 платежей одного договора за период с сентября 2022 года по июнь 2050 года. Для каждого платежа рассмотрели дату, общую сумму, проценты, погашение основного долга и остаток задолженности. Сохранили номера строк источника, чтобы можно было проверить происхождение значений.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Проверили типы полей, пропуски, дубликаты, порядок дат, распределения и возможные выбросы. В извлечённой таблице пропусков и дубликатов не обнаружили, даты идут по порядку, на каждый месяц приходится один платёж. Последний платёж отличается от остальных и отмечен правилом IQR как возможный выброс. Это повод проверить строку, а не автоматически удалять её.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Сверили разбиение платежа на проценты и тело долга, движение остатка, итоговые суммы и выбранные формулы графика. Все 1677 числовых сверок прошли. При этом на каждом листе есть 1330 формул без сохранённого результата. Поэтому проверка сохранённых значений не означает полный пересчёт всей книги.
 
-## Add your files
+## Связи между показателями
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+Изучили корреляции Спирмена. Проценты тесно связаны с остатком долга, а проценты и погашение тела меняются в противоположных направлениях. Это объясняется устройством графика: при почти постоянном платеже уменьшение процентов увеличивает долю погашения долга. Такие связи сами по себе не доказывают причинное влияние на экономический капитал.
 
-```
-cd existing_repo
-git remote add origin https://gitlab.mai.ru/ADChubinets/project-t1-factor-analysis.git
-git branch -M main
-git push -uf origin main
-```
+## Сравнение ANN, SIMPLE и RGM
 
-## Integrate with your tools
+Исходный аннуитетный график ANN сохранили. Для того же начального остатка, дат и договорной ставки 7,5% построили два учебных варианта: SIMPLE с возвратом всего тела в конце срока и RGM с равномерным погашением тела.
 
-* [Set up project integrations](https://gitlab.mai.ru/ADChubinets/project-t1-factor-analysis/-/settings/integrations)
+| Тип | Сумма процентов | Последний платёж | PV при 8% |
+| --- | ---: | ---: | ---: |
+| ANN | 5 039 033,17 | 26 005,46 | 3 473 006,23 |
+| SIMPLE | 7 604 236,54 | 3 664 018,35 | 3 432 647,68 |
+| RGM | 3 812 984,12 | 10 970,49 | 3 502 461,10 |
 
-## Collaborate with your team
+В этом опыте RGM быстрее возвращает тело долга и даёт наименьшую сумму процентов. SIMPLE сохраняет весь долг до конца, поэтому проценты выше, а последний платёж значительно больше. У RGM отдельные платежи могут временно увеличиваться из-за разного числа дней между датами.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## Дисконтирование платежей
 
-## Test and Deploy
+Рассчитали PV оставшихся положительных потоков при учебных ставках 7,5%, 8% и 9%. Использовали непрерывное дисконтирование с фактическим числом дней и базой 365.
 
-Use the built-in continuous integration in GitLab.
+Повышение ставки уменьшило PV всех трёх графиков. При выбранных условиях PV RGM выше PV ANN, а PV ANN выше PV SIMPLE. Это результат конкретного примера. Без начальной выдачи, обязательств и других компонентов полученную сумму нельзя считать полноценной банковской NPV.
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## Объяснение месячного изменения
 
-***
+Между первыми двумя платежами ANN проценты выросли с 16 482,09 до 22 416,88, то есть на 5 934,79. Методом Shapley разделили изменение на вклад числа дней и остатка долга. Увеличение интервала с 22 до 30 дней дало вклад +5 985,66, а уменьшение долга дало вклад -50,87. Небольшой остаток связан с округлением. Главный фактор роста процентов в этом переходе - длина интервала.
 
-# Editing this README
+Отдельно провели учебный опыт сценарного ЭК: изменили дату оценки и базовую ставку с 8% до 9%, применили стрессы ±200 базисных пунктов. Использовали `dNPV = NPV_stress - NPV_base` и `EC_signed = min(dNPV)` по стрессам. ЭК изменился с -552 373,73 до -479 166,57. Разность составила +73 207,16: вклад ставки +72 169,31, вклад времени +1 037,85. Значение стало менее отрицательным. Взаимодействие факторов уже учтено во вкладах и повторно к сумме не добавляется.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Результат и ограничения
 
-## Suggestions for a good README
+Ноутбук сохраняет профиль данных, результаты месячных опытов и сравнение графиков в JSON, а сами графики в CSV. Исходный Excel не изменяется.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Предоставленный файл содержит график будущих платежей одного договора, а не историю банковских оценок NPV и ЭК. Ставки дисконтирования, стрессы и правила альтернативных графиков заданы для учебного опыта. Для дальнейшего факторного анализа нужны реальные месячные снимки метрики и факторов, согласованные правила расчёта и уровень агрегации. Качество на банковской истории и работа живой LLM пока не подтверждены.
