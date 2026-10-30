@@ -63,6 +63,8 @@ def main() -> None:
     write_results(output, result)
     from .plots import render_plots
     render_plots(output, result)
+    from .excel_report import write_excel_report
+    write_excel_report(output / "report.xlsx", result, contract, capture)
     print(f"Verified {len(result['journal'])} required + {len(result['optional_rate_experiments'])} optional experiments")
     print(f"DF residual: {result['df_balance']['residual']:.12g} RUB")
     print(f"Output: {output}")
