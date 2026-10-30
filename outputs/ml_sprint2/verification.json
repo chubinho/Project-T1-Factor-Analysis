@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "required_records": 24,
+    "optional_records": 2,
+    "all_oat_and_restores_verified": true,
+    "all_cashflows_verified": true,
+    "max_independent_valuation_error_rub": 3.725290298461914e-08
+  },
+  "df_balance": {
+    "contributions_sum": -164522.41261066825,
+    "initial_dnpv": -164522.41261064797,
+    "residual": 2.028536982834339e-08,
+    "absolute_tolerance_rub": 1e-06,
+    "passed": true
+  }
+}

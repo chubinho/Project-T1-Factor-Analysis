@@ -1,0 +1,248 @@
+[
+  {
+    "experiment_id": "control",
+    "family": "control",
+    "cell": null,
+    "old_value": null,
+    "new_value": null,
+    "optional": false
+  },
+  {
+    "experiment_id": "principal_minus10",
+    "family": "principal",
+    "cell": "F3",
+    "old_value": 3646037.89,
+    "new_value": 3281434.1010000003,
+    "optional": false
+  },
+  {
+    "experiment_id": "principal_plus10",
+    "family": "principal",
+    "cell": "F3",
+    "old_value": 3646037.89,
+    "new_value": 4010641.6790000005,
+    "optional": false
+  },
+  {
+    "experiment_id": "rate_065",
+    "family": "contract_rate",
+    "cell": "J3",
+    "old_value": 0.075,
+    "new_value": 0.065,
+    "optional": false
+  },
+  {
+    "experiment_id": "rate_085",
+    "family": "contract_rate",
+    "cell": "J3",
+    "old_value": 0.075,
+    "new_value": 0.085,
+    "optional": false
+  },
+  {
+    "experiment_id": "df_B",
+    "family": "df",
+    "cell": "B9",
+    "old_value": 0.999651169198588,
+    "new_value": 0.999732552262625,
+    "bucket": "1d",
+    "df_column": "B",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_C",
+    "family": "df",
+    "cell": "C9",
+    "old_value": 0.994817482218114,
+    "new_value": 0.99600261369558,
+    "bucket": "1m",
+    "df_column": "C",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_D",
+    "family": "df",
+    "cell": "D9",
+    "old_value": 0.979442727946892,
+    "new_value": 0.983845801787493,
+    "bucket": "3m",
+    "df_column": "D",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_E",
+    "family": "df",
+    "cell": "E9",
+    "old_value": 0.954253548947847,
+    "new_value": 0.962980853771392,
+    "bucket": "6m",
+    "df_column": "E",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_F",
+    "family": "df",
+    "cell": "F9",
+    "old_value": 0.924210958811427,
+    "new_value": 0.936589314668576,
+    "bucket": "9m",
+    "df_column": "F",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_G",
+    "family": "df",
+    "cell": "G9",
+    "old_value": 0.894218435449277,
+    "new_value": 0.908798057795275,
+    "bucket": "1y",
+    "df_column": "G",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_I",
+    "family": "df",
+    "cell": "I9",
+    "old_value": 0.848552054303332,
+    "new_value": 0.864182460540756,
+    "bucket": "1.5y",
+    "df_column": "I",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_J",
+    "family": "df",
+    "cell": "J9",
+    "old_value": 0.789627664234718,
+    "new_value": 0.803602670442684,
+    "bucket": "2y",
+    "df_column": "J",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_K",
+    "family": "df",
+    "cell": "K9",
+    "old_value": 0.704494841445707,
+    "new_value": 0.711972193618007,
+    "bucket": "3y",
+    "df_column": "K",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_L",
+    "family": "df",
+    "cell": "L9",
+    "old_value": 0.606650282258177,
+    "new_value": 0.602624009857202,
+    "bucket": "4y",
+    "df_column": "L",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_M",
+    "family": "df",
+    "cell": "M9",
+    "old_value": 0.519607790861193,
+    "new_value": 0.504354845658057,
+    "bucket": "5y",
+    "df_column": "M",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_N",
+    "family": "df",
+    "cell": "N9",
+    "old_value": 0.443740380517799,
+    "new_value": 0.41939070199471,
+    "bucket": "6y",
+    "df_column": "N",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_O",
+    "family": "df",
+    "cell": "O9",
+    "old_value": 0.382798809970496,
+    "new_value": 0.351555913160555,
+    "bucket": "7y",
+    "df_column": "O",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_P",
+    "family": "df",
+    "cell": "P9",
+    "old_value": 0.329799717833274,
+    "new_value": 0.294045500109817,
+    "bucket": "8y",
+    "df_column": "P",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_Q",
+    "family": "df",
+    "cell": "Q9",
+    "old_value": 0.28404048346849,
+    "new_value": 0.24580293414785,
+    "bucket": "9y",
+    "df_column": "Q",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_R",
+    "family": "df",
+    "cell": "R9",
+    "old_value": 0.243347371027279,
+    "new_value": 0.204457475177524,
+    "bucket": "10y",
+    "df_column": "R",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_S",
+    "family": "df",
+    "cell": "S9",
+    "old_value": 0.154239168224516,
+    "new_value": 0.118954255691184,
+    "bucket": "15y",
+    "df_column": "S",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_T",
+    "family": "df",
+    "cell": "T9",
+    "old_value": 0.072259135106633,
+    "new_value": 0.0488772391441951,
+    "bucket": "20y",
+    "df_column": "T",
+    "optional": false
+  },
+  {
+    "experiment_id": "df_U",
+    "family": "df",
+    "cell": "U9",
+    "old_value": 0.0227391126637785,
+    "new_value": 0.0128447224767261,
+    "bucket": "30y",
+    "df_column": "U",
+    "optional": false
+  },
+  {
+    "experiment_id": "rate_070",
+    "family": "contract_rate",
+    "cell": "J3",
+    "old_value": 0.075,
+    "new_value": 0.07,
+    "optional": true
+  },
+  {
+    "experiment_id": "rate_080",
+    "family": "contract_rate",
+    "cell": "J3",
+    "old_value": 0.075,
+    "new_value": 0.08,
+    "optional": true
+  }
+]
