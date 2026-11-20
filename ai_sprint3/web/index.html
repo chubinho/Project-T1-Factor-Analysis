@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12233c">
+  <title>Факторный анализ сделки · Спринт 3</title>
+  <link rel="stylesheet" href="/dashboard.css">
+  <script type="module" src="/dashboard.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="frame masthead-inner"><strong>Проект Т1</strong><span>Практика / Спринт 3</span></div>
+  </header>
+  <main class="frame">
+    <header class="page-heading">
+      <div>
+        <h1>Факторный анализ сделки</h1>
+        <p>Измените параметры и сравните платежи и приведённую стоимость.</p>
+      </div>
+      <a href="#sources">Источники и сверка</a>
+    </header>
+
+    <section class="panel controls" aria-labelledby="inputs-title" id="controls">
+      <div class="panel-heading">
+        <h2 id="inputs-title">Параметры расчёта</h2>
+        <button type="button" id="reset" disabled>Вернуть исходные параметры</button>
+      </div>
+      <fieldset id="inputs" disabled>
+        <label>Сделка<select id="deal"></select></label>
+        <label>Тип платежа<select id="payment-type"></select></label>
+        <label>База начисления<select id="day-count"></select></label>
+        <label>Стресс-сценарий<select id="scenario"></select></label>
+      </fieldset>
+      <p class="meta" id="deal-summary"></p>
+    </section>
+
+    <p class="notice" id="status" role="status">Загружаем параметры расчёта…</p>
+    <p class="notice error" id="error" role="alert" hidden></p>
+
+    <div id="results" hidden>
+      <section class="valuation" aria-labelledby="metrics-title">
+        <h2 id="metrics-title">PV денежных потоков</h2>
+        <dl class="metrics">
+          <div class="panel metric">
+            <dt>PV по базовой кривой</dt><dd id="base-pv"></dd><dd id="base-note" class="metric-note"></dd>
+          </div>
+          <div class="panel metric">
+            <dt>PV по выбранной кривой</dt><dd id="stress-pv"></dd><dd id="stress-note" class="metric-note"></dd>
+          </div>
+          <div class="panel metric accent">
+            <dt>dNPV сценария</dt><dd id="dnpv"></dd><dd class="metric-note">PV по выбранной кривой − PV по базовой</dd>
+          </div>
+          <div class="panel metric">
+            <dt>Проценты за весь срок</dt><dd id="total-interest"></dd><dd id="interest-note" class="metric-note"></dd>
+          </div>
+        </dl>
+      </section>
+
+      <div class="plots">
+        <section class="panel plot" aria-labelledby="payments-title">
+          <h2 id="payments-title">График платежей</h2>
+          <p class="meta" id="payments-caption"></p>
+          <div class="legend" aria-hidden="true">
+            <span><i class="swatch principal"></i>Тело долга</span>
+            <span><i class="swatch interest"></i>Проценты</span>
+            <span id="outline-key"><i class="swatch outline"></i>Исходные платежи светлее</span>
+          </div>
+          <canvas id="payments-chart" role="img" aria-label="Суммы тела и процентов по датам платежей. Точные значения в таблице платежей."></canvas>
+          <details>
+            <summary>Таблица платежей до и после</summary>
+            <div class="table-scroll" tabindex="0" aria-label="Таблица платежей до и после">
+              <table>
+                <thead><tr><th rowspan="2" scope="col">Дата</th><th scope="colgroup" colspan="3">До</th><th scope="colgroup" colspan="3">После</th></tr>
+                <tr><th scope="col">Тело</th><th scope="col">Проценты</th><th scope="col">Платёж</th><th scope="col">Тело</th><th scope="col">Проценты</th><th scope="col">Платёж</th></tr></thead>
+                <tbody id="payments-table"></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel plot" aria-labelledby="curves-title">
+          <h2 id="curves-title">Кривые доходности</h2>
+          <p class="meta" id="curves-caption"></p>
+          <div class="legend" aria-hidden="true">
+            <span><i class="swatch base-line"></i>Базовая</span>
+            <span id="stress-key"><i class="swatch stress-line"></i>Выбранный стресс</span>
+          </div>
+          <canvas id="curves-chart" role="img" aria-label="Ставки по срокам. Точные значения в таблице кривых."></canvas>
+          <details>
+            <summary>Таблица ставок по срокам</summary>
+            <div class="table-scroll" tabindex="0" aria-label="Таблица ставок по срокам">
+              <table>
+                <thead><tr><th scope="col">Срок, лет</th><th scope="col">База</th><th scope="col">Выбранная</th><th scope="col">Сдвиг, п.п.</th></tr></thead>
+                <tbody id="curves-table"></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <section class="panel explanation" aria-labelledby="explanation-title">
+        <h2 id="explanation-title">Что изменилось</h2>
+        <div id="explanations"></div>
+        <details>
+          <summary>Показатели до и после</summary>
+          <div class="table-scroll" tabindex="0" aria-label="Показатели до и после">
+            <table>
+              <thead><tr><th scope="col">Показатель</th><th scope="col">До</th><th scope="col">После</th><th scope="col">Изменение</th></tr></thead>
+              <tbody id="metrics-table"></tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <section class="panel sources" id="sources" aria-labelledby="sources-title" hidden>
+      <h2 id="sources-title">Источники и сверка</h2>
+      <dl id="source-grid"></dl>
+      <p class="meta">Для сверки с командой 1 нужны контрольный график сделки и правила расчёта. Для расчёта эффекта ключевой ставки нужна подтверждённая связь между её изменением и выбранной кривой.</p>
+      <div class="source-links">
+        <a href="/reference/sprint3.csv">Журнал спринта 3 (CSV)</a>
+        <a href="/reference/sprint2.json">Контроль спринта 2 (JSON)</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
