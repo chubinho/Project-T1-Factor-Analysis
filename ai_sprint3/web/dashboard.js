@@ -10,6 +10,7 @@ const paymentChart = byId('payments-chart');
 const curveChart = byId('curves-chart');
 const payments = { ANN: 'ANN · аннуитет', RGM: 'RGM · равные доли тела', SIMPLE: 'SIMPLE · тело в конце срока' };
 const dayCountLabel = id => id === 'ACT/365' ? 'ACT/365 Fixed' : id;
+const dayCountOption = id => id === 'ACT/ACT ISDA' ? 'ACT/ACT ISDA · 365/366' : dayCountLabel(id);
 const scenarioLabels = {
   base: 'Без стресса', parallel_up: 'Параллельный сдвиг вверх', parallel_down: 'Параллельный сдвиг вниз',
   steepener: 'Увеличение наклона', flattener: 'Уменьшение наклона',
@@ -243,7 +244,7 @@ async function init() {
     deals = new Map(options.deals.map(deal => [deal.deal_id, deal]));
     dealInput.replaceChildren(...options.deals.map(deal => new Option(deal.deal_id, deal.deal_id)));
     paymentInput.replaceChildren(...options.payment_types.map(type => new Option(payments[type], type)));
-    dayCountInput.replaceChildren(...Object.keys(options.day_counts).map(dayCount => new Option(dayCountLabel(dayCount), dayCount)));
+    dayCountInput.replaceChildren(...Object.keys(options.day_counts).map(dayCount => new Option(dayCountOption(dayCount), dayCount)));
     scenarioInput.replaceChildren(...options.scenarios.map(({ label, id, available }) =>
       new Option(`${scenarioLabels[id] || label}${available ? '' : ' · нет данных'}`, id)));
     dealInput.addEventListener('change', updateDeal);
