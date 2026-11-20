@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from calendar import monthrange
+from calendar import isleap, monthrange
 from dataclasses import dataclass
 from datetime import date
 import math
 
 
-DAY_COUNTS = {"ACT/365": 365, "ACT/360": 360}
+DAY_COUNTS = {"ACT/365": 365, "ACT/360": 360, "ACT/ACT ISDA": None}
 PAYMENT_TYPES = ("ANN", "RGM", "SIMPLE")
 
 
@@ -116,11 +116,27 @@ class Deal:
         }
 
 
+def _day_count_terms(start: date, end: date, convention: str) -> dict[int, int]:
+    """Return actual days grouped by the denominator used to accrue interest."""
+    denominator = DAY_COUNTS[convention]
+    if denominator is not None:
+        return {denominator: (end - start).days}
+
+    terms = {}
+    while start < end:
+        # Split at calendar year boundaries, including start and excluding end.
+        boundary = date(start.year + 1, 1, 1) if start.year < end.year else end
+        denominator = 366 if isleap(start.year) else 365
+        terms[denominator] = terms.get(denominator, 0) + (boundary - start).days
+        start = boundary
+    return terms
+
+
 def build_schedule(deal: Deal) -> list[dict]:
     starts = (deal.start_date, *deal.payment_dates[:-1])
-    days = [(end - start).days for start, end in zip(starts, deal.payment_dates)]
-    denominator = DAY_COUNTS[deal.day_count]
-    period_rates = [deal.annual_rate * (length / denominator) for length in days]
+    terms = [_day_count_terms(start, end, deal.day_count) for start, end in zip(starts, deal.payment_dates)]
+    fractions = [math.fsum(count / denominator for denominator, count in group.items()) for group in terms]
+    period_rates = [deal.annual_rate * fraction for fraction in fractions]
     if not all(map(math.isfinite, period_rates)):
         raise ValueError("Period rates exceed the supported numerical range")
 
@@ -133,19 +149,19 @@ def build_schedule(deal: Deal) -> list[dict]:
 
     schedule = []
     closing = deal.principal
-    for index, (start, end, length, rate) in enumerate(
-        zip(starts, deal.payment_dates, days, period_rates), 1
+    for index, (start, end, group, fraction, rate) in enumerate(
+        zip(starts, deal.payment_dates, terms, fractions, period_rates), 1
     ):
         opening = closing
         interest = opening * rate
-        if index == len(days):
+        if index == len(terms):
             principal = opening
         elif deal.payment_type == "ANN":
             principal = regular_payment - interest
             if not 0 <= principal <= opening:
                 raise ValueError(f"Payment {index}: annuity would increase or overpay the principal")
         elif deal.payment_type == "RGM":
-            principal = deal.principal / len(days)
+            principal = deal.principal / len(terms)
         else:
             principal = 0.0
         closing = opening - principal
@@ -156,7 +172,9 @@ def build_schedule(deal: Deal) -> list[dict]:
             "number": index,
             "period_start": start.isoformat(),
             "payment_date": end.isoformat(),
-            "days": length,
+            "days": sum(group.values()),
+            "day_count_terms": group,
+            "year_fraction": fraction,
             "opening_balance": opening,
             "interest": interest,
             "principal": principal,

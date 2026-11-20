@@ -69,6 +69,27 @@ class Sprint3Tests(unittest.TestCase):
         ])
         self.assertGreater(result["delta_metrics"]["total_interest"], 0)
 
+    def test_act_act_isda_splits_years_and_counts_february_29(self):
+        start = date(2027, 11, 20)
+        deal = replace(
+            self.deal, start_date=start, payment_type="SIMPLE",
+            payment_dates=(date(2027, 12, 20), date(2028, 1, 20), date(2028, 2, 20), date(2028, 3, 20)),
+        )
+        result = compare(deal, self.curves, start, "up", day_count="ACT/ACT ISDA")
+        before, after = result["before"]["schedule"], result["after"]["schedule"]
+        for row, days_by_denominator in zip(after, ({365: 30}, {365: 12, 366: 19}, {366: 31}, {366: 29})):
+            with self.subTest(period=row["payment_date"]):
+                year_fraction = sum(days / denominator for denominator, days in days_by_denominator.items())
+                self.assertEqual(row["day_count_terms"], days_by_denominator)
+                self.assertEqual(row["days"], sum(days_by_denominator.values()))
+                self.assertAlmostEqual(row["year_fraction"], year_fraction)
+                self.assertAlmostEqual(row["interest"], deal.principal * deal.annual_rate * year_fraction)
+        self.assertEqual(before[0]["interest"], after[0]["interest"])
+        self.assertGreater(before[-1]["interest"], after[-1]["interest"])
+        self.assertEqual([row["discounting"]["stress_df"] for row in before],
+                         [row["discounting"]["stress_df"] for row in after])
+        self.assertEqual(after[-1]["closing_balance"], 0)
+
     def test_valuation_filters_past_and_same_day_and_interpolates_rates(self):
         controls = evaluate(self.deal, self.curves, self.start, "up")
         first, second, _ = controls["schedule"]

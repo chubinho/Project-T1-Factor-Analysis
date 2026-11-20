@@ -9,6 +9,7 @@ const scenarioInput = byId('scenario');
 const paymentChart = byId('payments-chart');
 const curveChart = byId('curves-chart');
 const payments = { ANN: 'ANN · аннуитет', RGM: 'RGM · равные доли тела', SIMPLE: 'SIMPLE · тело в конце срока' };
+const dayCountLabel = id => id === 'ACT/365' ? 'ACT/365 Fixed' : id;
 const scenarioLabels = {
   base: 'Без стресса', parallel_up: 'Параллельный сдвиг вверх', parallel_down: 'Параллельный сдвиг вниз',
   steepener: 'Увеличение наклона', flattener: 'Уменьшение наклона',
@@ -59,39 +60,46 @@ function card(title, ...paragraphs) {
   return article;
 }
 
-function explain(result, money, delta, scenario, start, end, ratesChanged) {
+function interestFormula(row, rate, money) {
+  const terms = Object.entries(row.day_count_terms).map(([denominator, days]) => `${days} / ${denominator}`);
+  const fraction = terms.length === 1 ? terms[0] : `(${terms.join(' + ')})`;
+  return `${money(row.opening_balance)} × ${rates.format(rate)} × ${fraction} = ${money(row.interest)}`;
+}
+
+function explain(result, money, delta, scenario, ratesChanged) {
   const { before, after, changed_parameters: changes, delta_metrics: diff } = result;
   const cards = [];
   for (const change of changes) {
     if (change.parameter === 'payment_type') {
       cards.push(card(`Тип платежа · ${change.before} → ${change.after}`,
         `Выбран способ погашения «${payments[change.after]}». Сумма, договорная ставка и даты платежей сохранены.`,
-        `Первый платёж ${money(start.payment)} → ${money(end.payment)}. Изменение суммы процентов ${delta(diff.total_interest)}, базовой PV ${delta(diff.base_pv)}.`));
+        `Первый платёж ${money(before.schedule[0].payment)} → ${money(after.schedule[0].payment)}.`));
     } else if (change.parameter === 'day_count') {
-      cards.push(card(`База начисления · ${change.before} → ${change.after}`,
-        `В первом периоде ${start.days} дн. Проценты = ${money(start.opening_balance)} × ${rates.format(after.deal.annual_rate)} × ${start.days} / ${change.before.split('/')[1]} или / ${change.after.split('/')[1]}.`,
-        `Проценты за первый период ${money(start.interest)} → ${money(end.interest)}. Изменение суммы процентов ${delta(diff.total_interest)}, базовой PV ${delta(diff.base_pv)}.`));
+      const differentFraction = after.schedule.findIndex((row, i) => row.year_fraction !== before.schedule[i].year_fraction);
+      const example = Math.max(0, differentFraction);
+      const old = before.schedule[example];
+      const current = after.schedule[example];
+      cards.push(card(`База начисления · ${dayCountLabel(change.before)} → ${dayCountLabel(change.after)}`,
+        `Период ${formatDate(current.period_start)} – ${formatDate(current.payment_date)} · ${current.days} дн.`,
+        `До · ${interestFormula(old, before.deal.annual_rate, money)}`,
+        `После · ${interestFormula(current, after.deal.annual_rate, money)}`));
     }
   }
-  if (cards.length) {
-    const comparison = document.createDocumentFragment();
-    if (cards.length > 1) comparison.append(make('p', 'В сравнении одновременно изменены тип платежа и база начисления. Указанные суммы отражают совместный эффект.', 'meta'));
-    comparison.append(...cards);
-    comparison.append(card('Оценка изменённых платежей',
-      `Для обоих графиков использованы одни и те же кривые, дата оценки и сроки дисконтирования. Изменение PV по выбранной кривой ${delta(diff.stress_pv)}.`,
-      `Изменение сценарного dNPV между графиками ${delta(diff.dnpv)}.`));
-    byId('explanations').replaceChildren(comparison);
-    return;
+  const scheduleChanges = cards.length;
+  if (scheduleChanges) {
+    cards.push(card(scheduleChanges === 2 ? 'Совместный эффект двух факторов' : 'Итог по графику',
+      `Изменение суммы процентов ${delta(diff.total_interest)}, базовой PV ${delta(diff.base_pv)}.`,
+      `При одной и той же паре кривых изменение PV по выбранной кривой ${delta(diff.stress_pv)}, изменение dNPV между графиками ${delta(diff.dnpv)}.`));
   }
   if (after.scenario_id !== 'base') {
-    cards.push(card(`Стресс · ${scenario.label}`,
+    cards.push(card(`Стресс · ${scenarioLabels[after.scenario_id] || scenario.label}`,
       ratesChanged
-        ? 'Платежи по фиксированной сделке сохранены. Доходности выбранной кривой меняют дисконт-факторы будущих платежей по формуле DF = exp(−r × t).'
-        : 'Платежи по фиксированной сделке сохранены. Доходности выбранной кривой совпадают с базовыми.',
+        ? 'Обе PV рассчитаны по одному текущему графику платежей. Стресс меняет дисконт-факторы по формуле DF = exp(−r × t).'
+        : 'Обе PV рассчитаны по одному текущему графику платежей. Доходности выбранной кривой совпадают с базовыми.',
       `${money(after.metrics.stress_pv)} − ${money(after.metrics.base_pv)} = ${delta(after.metrics.dnpv)} по неокруглённым значениям.`));
-  } else {
+  } else if (!scheduleChanges) {
     cards.push(card('Исходные параметры',
-      `Показан график ${after.deal.payment_type} с начислением ${after.deal.day_count}. Обе оценки рассчитаны по базовой кривой.`));
+      `Показан график ${after.deal.payment_type} с начислением ${dayCountLabel(after.deal.day_count)}. Обе оценки рассчитаны по базовой кривой.`));
   }
   byId('explanations').replaceChildren(...cards);
 }
@@ -117,16 +125,6 @@ function showSources(result, scenario) {
     ['Дата среза кривых', source.as_of ? formatDate(source.as_of) : 'В источнике отсутствует'],
     ['Версия источника', `SHA-256 ${source.sha256}`],
   ];
-  if (after.scenario_id !== 'base') {
-    const shock = scenario.key_rate_shock_pp;
-    if (Number.isFinite(shock)) {
-      const link = make('a', `${points.format(shock)} п.п.`);
-      link.href = '#scenario-source';
-      metadata.push(['Изменение ключевой ставки', link]);
-    } else {
-      metadata.push(['Изменение ключевой ставки', 'Связь со сценарием в источнике отсутствует']);
-    }
-  }
   byId('source-grid').replaceChildren(...metadata.flatMap(([label, value]) => {
     const description = make('dd');
     description.append(value);
@@ -158,12 +156,24 @@ function show(result) {
   put('base-note', `На ${formatDate(after.valuation_date)} · ${currency}`);
   put('stress-note', hasStress ? (scenarioLabels[after.scenario_id] || scenario.label) : 'Без стресса');
   put('interest-note', `К исходному графику ${delta(diff.total_interest)}`);
-  put('payments-caption', `${before.deal.payment_type} / ${before.deal.day_count} → ${after.deal.payment_type} / ${after.deal.day_count} · ${after.schedule.length} платежей`);
+  const originalSchedule = `${before.deal.payment_type} / ${dayCountLabel(before.deal.day_count)}`;
+  const selectedSchedule = `${after.deal.payment_type} / ${dayCountLabel(after.deal.day_count)}`;
+  const scheduleLabel = originalSchedule === selectedSchedule ? selectedSchedule : `${originalSchedule} → ${selectedSchedule}`;
+  put('payments-caption', `${scheduleLabel} · ${after.schedule.length} платежей`);
   put('curves-caption', hasStress
     ? `Сдвиг доходности ${Math.abs(maxShift - minShift) < 1e-9 ? points.format(maxShift) : `от ${points.format(minShift)} до ${points.format(maxShift)}`} п.п.`
     : 'Для обеих оценок применяется базовая кривая.');
   byId('outline-key').hidden = !changed;
   byId('stress-key').hidden = !hasStress;
+  const keyRate = byId('key-rate');
+  keyRate.hidden = !hasStress;
+  if (hasStress && Number.isFinite(scenario.key_rate_shock_pp)) {
+    const sourceLink = make('a', `${points.format(scenario.key_rate_shock_pp)} п.п.`);
+    sourceLink.href = '#scenario-source';
+    keyRate.replaceChildren('Изменение ключевой ставки · ', sourceLink);
+  } else if (hasStress) {
+    keyRate.textContent = 'В источнике сценария не указана связь с изменением ключевой ставки.';
+  }
 
   tableRows('payments-table', after.schedule.map((row, i) => {
     const old = before.schedule[i];
@@ -178,7 +188,7 @@ function show(result) {
   };
   tableRows('metrics-table', Object.entries(metrics).map(([key, label]) =>
     [label, money(before.metrics[key]), money(after.metrics[key]), delta(diff[key])]));
-  explain(result, money, delta, scenario, before.schedule[0], after.schedule[0], shifts.some(shift => shift !== 0));
+  explain(result, money, delta, scenario, shifts.some(shift => shift !== 0));
   showSources(result, scenario);
   byId('results').hidden = false;
   byId('sources').hidden = false;
@@ -233,7 +243,7 @@ async function init() {
     deals = new Map(options.deals.map(deal => [deal.deal_id, deal]));
     dealInput.replaceChildren(...options.deals.map(deal => new Option(deal.deal_id, deal.deal_id)));
     paymentInput.replaceChildren(...options.payment_types.map(type => new Option(payments[type], type)));
-    dayCountInput.replaceChildren(...Object.keys(options.day_counts).map(dayCount => new Option(dayCount, dayCount)));
+    dayCountInput.replaceChildren(...Object.keys(options.day_counts).map(dayCount => new Option(dayCountLabel(dayCount), dayCount)));
     scenarioInput.replaceChildren(...options.scenarios.map(({ label, id, available }) =>
       new Option(`${scenarioLabels[id] || label}${available ? '' : ' · нет данных'}`, id)));
     dealInput.addEventListener('change', updateDeal);

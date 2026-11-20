@@ -29,7 +29,7 @@
       <fieldset id="inputs" disabled>
         <label>Сделка<select id="deal"></select></label>
         <label>Тип платежа<select id="payment-type"></select></label>
-        <label>База начисления<select id="day-count"></select></label>
+        <label>База начисления процентов<select id="day-count"></select></label>
         <label>Стресс-сценарий<select id="scenario"></select></label>
       </fieldset>
       <p class="meta" id="deal-summary"></p>
@@ -87,6 +87,7 @@
             <span id="stress-key"><i class="swatch stress-line"></i>Выбранный стресс</span>
           </div>
           <canvas id="curves-chart" role="img" aria-label="Ставки по срокам. Точные значения в таблице кривых."></canvas>
+          <p class="meta key-rate" id="key-rate" hidden></p>
           <details>
             <summary>Таблица ставок по срокам</summary>
             <div class="table-scroll" tabindex="0" aria-label="Таблица ставок по срокам">
@@ -117,7 +118,7 @@
     <section class="panel sources" id="sources" aria-labelledby="sources-title" hidden>
       <h2 id="sources-title">Источники и сверка</h2>
       <dl id="source-grid"></dl>
-      <p class="meta">Для сверки с командой 1 нужны контрольный график сделки и правила расчёта. Для расчёта эффекта ключевой ставки нужна подтверждённая связь между её изменением и выбранной кривой.</p>
+      <p class="meta">Для сверки с командой 1 нужны контрольный график сделки и правила расчёта.</p>
       <div class="source-links">
         <a href="/reference/sprint3.csv">Журнал спринта 3 (CSV)</a>
         <a href="/reference/sprint2.json">Контроль спринта 2 (JSON)</a>

@@ -60,6 +60,7 @@ select:enabled:hover { border-color: var(--blue); }
 .positive { color: #076257; }
 .plots { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: .8rem; align-items: start; }
 .plot .meta { margin-top: .25rem; min-height: 1.35rem; }
+.plot .key-rate { margin-bottom: .65rem; padding: .45rem .6rem; border-radius: .35rem; background: #eef3f9; }
 .legend { display: flex; flex-wrap: wrap; gap: .35rem .85rem; margin-top: .7rem; color: var(--muted); font-size: .8125rem; }
 .legend span { display: inline-flex; align-items: center; gap: .36rem; }
 .swatch { display: inline-block; width: .75rem; height: .75rem; border-radius: 2px; }
