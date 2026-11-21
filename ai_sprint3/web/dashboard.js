@@ -1,4 +1,4 @@
-import { drawCurves, drawPayments } from './charts.js';
+import { drawCurves, drawPayments, drawReadyPayments } from './charts.js';
 import { initGenerator } from './generator.js';
 
 const byId = id => document.getElementById(id);
@@ -25,6 +25,7 @@ const tenors = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 4 });
 const points = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3, signDisplay: 'exceptZero' });
 const formatDate = iso => dateFormat.format(new Date(iso));
 const signal = value => value < -.005 ? 'negative' : value >= .005 ? 'positive' : '';
+const hasReadyPayments = deal => deal.input_type === 'team1_payments';
 
 let deals;
 let generatedDeals = new Map();
@@ -102,6 +103,8 @@ function explain(result, money, delta, scenario, ratesChanged) {
         ? 'Обе PV рассчитаны по одному текущему графику платежей. Стресс меняет дисконт-факторы по формуле DF = exp(−r × t).'
         : 'Обе PV рассчитаны по одному текущему графику платежей. Доходности выбранной кривой совпадают с базовыми.',
       `${money(after.metrics.stress_pv)} − ${money(after.metrics.base_pv)} = ${delta(after.metrics.dnpv)} по неокруглённым значениям.`));
+  } else if (hasReadyPayments(after.deal)) {
+    cards.push(card('Готовый график команды 1', 'Будущие суммы взяты из полученного графика. Выберите стресс, чтобы сравнить оценки.'));
   } else if (!scheduleChanges) {
     cards.push(card('Исходные параметры',
       `Показан график ${after.deal.payment_type} с начислением ${dayCountLabel(after.deal.day_count)}. Обе оценки рассчитаны по базовой кривой.`));
@@ -130,6 +133,7 @@ function showSources(result, scenario) {
     ['Дата среза кривых', source.as_of ? formatDate(source.as_of) : 'В источнике отсутствует'],
     ['Версия источника', `SHA-256 ${source.sha256}`],
   ];
+  if (after.deal.demo_assumptions) metadata.splice(3, 0, ['Условия оценки', 'Валюта и дата заданы для учебного прогона.']);
   byId('source-grid').replaceChildren(...metadata.flatMap(([label, value]) => {
     const description = make('dd');
     description.append(value);
@@ -140,6 +144,8 @@ function showSources(result, scenario) {
 function show(result) {
   const { before, after, market, delta_metrics: diff } = result;
   const currency = after.deal.currency;
+  const ready = hasReadyPayments(after.deal);
+  const future = ready ? after.schedule.filter(row => row.discounting) : [];
   const money = new Intl.NumberFormat('ru-RU', { style: 'currency', currency }).format;
   const signedMoney = new Intl.NumberFormat('ru-RU', { style: 'currency', currency, signDisplay: 'exceptZero' }).format;
   const delta = value => signedMoney(Math.abs(value) < .005 ? 0 : value);
@@ -160,11 +166,22 @@ function show(result) {
   put('total-interest', money(after.metrics.total_interest));
   put('base-note', `На ${formatDate(after.valuation_date)} · ${currency}`);
   put('stress-note', hasStress ? (scenarioLabels[after.scenario_id] || scenario.label) : 'Без стресса');
-  put('interest-note', `К исходному графику ${delta(diff.total_interest)}`);
-  const originalSchedule = `${before.deal.payment_type} / ${dayCountLabel(before.deal.day_count)}`;
-  const selectedSchedule = `${after.deal.payment_type} / ${dayCountLabel(after.deal.day_count)}`;
-  const scheduleLabel = originalSchedule === selectedSchedule ? selectedSchedule : `${originalSchedule} → ${selectedSchedule}`;
-  put('payments-caption', `${scheduleLabel} · ${after.schedule.length} платежей`);
+  put('interest-note', ready ? 'По всему готовому графику' : `К исходному графику ${delta(diff.total_interest)}`);
+  if (ready) {
+    put('payments-caption', future.length ? `Команда 1 · будущих платежей: ${future.length} · всего: ${after.schedule.length}`
+      : 'По готовому графику после даты оценки платежей нет.');
+  } else {
+    const originalSchedule = `${before.deal.payment_type} / ${dayCountLabel(before.deal.day_count)}`;
+    const selectedSchedule = `${after.deal.payment_type} / ${dayCountLabel(after.deal.day_count)}`;
+    const scheduleLabel = originalSchedule === selectedSchedule ? selectedSchedule : `${originalSchedule} → ${selectedSchedule}`;
+    put('payments-caption', `${scheduleLabel} · ${after.schedule.length} платежей`);
+  }
+  byId('payment-legend').hidden = ready;
+  byId('regular-payments').hidden = ready;
+  byId('team1-payments').hidden = !ready || !future.length;
+  paymentChart.hidden = ready && !future.length;
+  paymentChart.setAttribute('aria-label', ready ? 'Суммы будущих платежей из графика команды 1'
+    : 'Суммы тела и процентов по датам платежей. Точные значения в таблице платежей.');
   put('curves-caption', hasStress
     ? `Сдвиг доходности ${Math.abs(maxShift - minShift) < 1e-9 ? points.format(maxShift) : `от ${points.format(minShift)} до ${points.format(maxShift)}`} п.п.`
     : 'Для обеих оценок применяется базовая кривая.');
@@ -180,14 +197,20 @@ function show(result) {
     keyRate.textContent = 'В источнике сценария не указана связь с изменением ключевой ставки.';
   }
 
-  tableRows('payments-table', after.schedule.map((row, i) => {
-    const old = before.schedule[i];
-    return [formatDate(row.payment_date), ...[old, row].flatMap(value => [value.principal, value.interest, value.payment].map(money))];
-  }));
+  if (ready) {
+    tableRows('team1-payments-table', future.map(row => [formatDate(row.payment_date),
+      ...[row.principal, row.interest, row.prepayment, row.subsidy, row.close, row.payment,
+        row.discounting.base_pv, row.discounting.stress_pv].map(money)]));
+  } else {
+    tableRows('payments-table', after.schedule.map((row, i) => {
+      const old = before.schedule[i];
+      return [formatDate(row.payment_date), ...[old, row].flatMap(value => [value.principal, value.interest, value.payment].map(money))];
+    }));
+  }
   tableRows('curves-table', market.tenors_years.map((years, i) =>
     [tenors.format(years), rates.format(baseRates[i]), rates.format(scenarioRates[i]), points.format(shifts[i])]));
   const metrics = {
-    total_principal: 'Тело долга', total_interest: 'Сумма процентов', total_payments: 'Сумма платежей',
+    total_principal: ready ? 'Плановое погашение тела' : 'Тело долга', total_interest: 'Сумма процентов', total_payments: 'Сумма платежей',
     final_balance: 'Остаток в конце срока', base_pv: 'PV по базовой кривой',
     stress_pv: 'PV по выбранной кривой', dnpv: 'Сценарный dNPV',
   };
@@ -198,7 +221,11 @@ function show(result) {
   byId('results').hidden = false;
   byId('sources').hidden = false;
   draw = () => {
-    drawPayments(paymentChart, before.schedule, after.schedule, changed, currency);
+    if (ready) {
+      if (future.length) drawReadyPayments(paymentChart, future, currency);
+    } else {
+      drawPayments(paymentChart, before.schedule, after.schedule, changed, currency);
+    }
     drawCurves(curveChart, market.tenors_years, baseRates, hasStress ? scenarioRates : null);
   };
   draw();
@@ -220,10 +247,19 @@ function addGeneratedDeals(rows) {
 
 function updateDeal() {
   const deal = generatedDeals.get(dealInput.value) ?? deals.get(dealInput.value);
-  const amount = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: deal.currency }).format(deal.principal);
-  put('deal-summary', `${deal.source} · ${amount} · ${rates.format(deal.annual_rate)} годовых, фиксированная ставка`);
-  paymentInput.value = deal.payment_type;
-  dayCountInput.value = deal.day_count;
+  const ready = hasReadyPayments(deal);
+  paymentInput.disabled = ready;
+  dayCountInput.disabled = ready;
+  if (ready) {
+    const terms = `${deal.currency} · ${formatDate(deal.valuation_date)}`;
+    const basis = deal.demo_assumptions ? `Учебные условия оценки: ${terms}` : terms;
+    put('deal-summary', `${deal.source} · готовый график · ${basis}`);
+  } else {
+    const amount = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: deal.currency }).format(deal.principal);
+    put('deal-summary', `${deal.source} · ${amount} · ${rates.format(deal.annual_rate)} годовых, фиксированная ставка`);
+  }
+  paymentInput.value = ready ? '' : deal.payment_type;
+  dayCountInput.value = ready ? '' : deal.day_count;
   scenarioInput.value = 'base';
   return update();
 }
@@ -266,8 +302,15 @@ async function update() {
 async function init() {
   try {
     const options = await getJson('/api/options');
-    deals = new Map(options.deals.map(deal => [deal.deal_id, deal]));
+    deals = new Map([...options.deals, ...options.team1_deals].map(deal => [deal.deal_id, deal]));
     dealInput.replaceChildren(...options.deals.map(deal => new Option(deal.deal_id, deal.deal_id)));
+    if (options.team1_deals.length) {
+      const group = document.createElement('optgroup');
+      group.label = 'Команда 1 · готовые графики';
+      group.append(...options.team1_deals.map(deal =>
+        new Option(`Сделка ${deal.source_deal_id} · будущих платежей: ${deal.future_payment_count}`, deal.deal_id)));
+      dealInput.append(group);
+    }
     paymentInput.replaceChildren(...options.payment_types.map(type => new Option(payments[type], type)));
     dayCountInput.replaceChildren(...Object.keys(options.day_counts).map(dayCount => new Option(dayCountOption(dayCount), dayCount)));
     scenarioInput.replaceChildren(...options.scenarios.map(({ label, id, available }) =>
@@ -290,6 +333,8 @@ async function init() {
     observer.observe(curveChart);
     byId('inputs').disabled = false;
     byId('reset').disabled = false;
+    const requestedDeal = new URLSearchParams(location.search).get('deal');
+    if (deals.has(requestedDeal)) dealInput.value = requestedDeal;
     await updateDeal();
   } catch (error) {
     showError(error);

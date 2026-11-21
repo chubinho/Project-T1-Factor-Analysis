@@ -118,3 +118,39 @@ export function drawCurves(canvas, tenors, base, stress) {
     axisLabel(area, xAt(tenor), yearLabel.format(tenor) + (tick === 5 ? ' лет' : ''), tick === 5 ? 'right' : 'center');
   }
 }
+
+export function drawReadyPayments(canvas, rows, currency) {
+  const area = canvasArea(canvas);
+  if (!area) return;
+  const { ctx, left, right } = area;
+  const amounts = rows.map(row => row.payment);
+  const limit = Math.max(...amounts.map(Math.abs));
+  const divisor = limit >= 1e6 ? 1e6 : limit >= 1e3 ? 1e3 : 1;
+  const unit = (divisor === 1e6 ? 'млн ' : divisor === 1e3 ? 'тыс. ' : '') + (currency === 'RUB' ? '₽' : currency);
+  const min = Math.floor(Math.min(0, ...amounts) / divisor);
+  const max = Math.max(min + 1, Math.ceil(Math.max(0, ...amounts) / divisor));
+  const scale = grid(area, min, max, unit);
+  const zero = scale(0);
+  ctx.strokeStyle = LABEL;
+  ctx.beginPath();
+  ctx.moveTo(left, zero);
+  ctx.lineTo(right, zero);
+  ctx.stroke();
+
+  const dates = rows.map(row => Date.parse(row.payment_date));
+  const width = right - left;
+  const span = dates.at(-1) - dates[0];
+  const barWidth = Math.max(1, Math.min(20, width / dates.length * .64));
+  const xAt = time => span ? left + barWidth / 2 + (time - dates[0]) / span * (width - barWidth) : (left + right) / 2;
+  rows.forEach((row, index) => {
+    const y = scale(row.payment / divisor);
+    ctx.fillStyle = row.payment < 0 ? '#9b3039' : PRINCIPAL;
+    ctx.fillRect(xAt(dates[index]) - barWidth / 2, Math.min(y, zero), barWidth, Math.abs(zero - y));
+  });
+  const tickCount = span ? Math.max(2, Math.floor(width / 100)) : 1;
+  for (let index = 0; index < tickCount; index++) {
+    const time = dates[0] + (tickCount === 1 ? 0 : index * span / (tickCount - 1));
+    const align = tickCount === 1 ? 'center' : index === 0 ? 'left' : index === tickCount - 1 ? 'right' : 'center';
+    axisLabel(area, xAt(time), monthLabel.format(new Date(time)), align);
+  }
+}

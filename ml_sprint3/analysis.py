@@ -14,15 +14,16 @@ METRIC_LABEL = "PV денежных потоков"
 SCHEMA_VERSION = 1
 
 
-def evaluate(deal: Deal, curves: CurveSet, valuation_date: date, scenario_id: str) -> dict:
-    if deal.currency != curves.currency:
-        raise ValueError(f"Deal currency {deal.currency} differs from curve currency {curves.currency}")
+def _evaluate_schedule(deal: dict, schedule: list[dict], curves: CurveSet,
+                       valuation_date: date, scenario_id: str) -> dict:
+    if deal["currency"] != curves.currency:
+        raise ValueError(f"Deal currency {deal['currency']} differs from curve currency {curves.currency}")
     if curves.as_of and curves.as_of != valuation_date:
         raise ValueError(f"Curve date {curves.as_of} differs from valuation date {valuation_date}")
     scenario = curves.scenario(scenario_id)
-    schedule = build_schedule(deal)
     base_values, stress_values = [], []
-    for row, payment_date in zip(schedule, deal.payment_dates):
+    for row in schedule:
+        payment_date = date.fromisoformat(row["payment_date"])
         days_to_payment = (payment_date - valuation_date).days
         if days_to_payment <= 0:
             row["discounting"] = None
@@ -46,7 +47,7 @@ def evaluate(deal: Deal, curves: CurveSet, valuation_date: date, scenario_id: st
 
     base_pv, stress_pv = math.fsum(base_values), math.fsum(stress_values)
     return {
-        "deal": deal.to_dict(),
+        "deal": deal,
         "valuation_date": valuation_date.isoformat(),
         "scenario_id": scenario_id,
         "metrics": {
@@ -63,8 +64,11 @@ def evaluate(deal: Deal, curves: CurveSet, valuation_date: date, scenario_id: st
     }
 
 
-def _comparison(before: dict, after: dict) -> dict:
-    field_names = ("payment_type", "day_count")
+def evaluate(deal: Deal, curves: CurveSet, valuation_date: date, scenario_id: str) -> dict:
+    return _evaluate_schedule(deal.to_dict(), build_schedule(deal), curves, valuation_date, scenario_id)
+
+
+def _comparison(before: dict, after: dict, field_names: tuple[str, ...] = ("payment_type", "day_count")) -> dict:
     fixed_inputs = {
         key: value for key, value in before["deal"].items() if key not in field_names
     }
@@ -108,6 +112,21 @@ def compare(
         "metric_label": METRIC_LABEL,
         "market": curves.to_dict(),
         **_comparison(before, after),
+        "before": before,
+        "after": after,
+    }
+
+
+def compare_ready_payments(deal: dict, schedule: tuple[dict, ...], curves: CurveSet,
+                           valuation_date: date, scenario_id: str) -> dict:
+    """Keep the received flows fixed while comparing base and stress discounting."""
+    before = _evaluate_schedule(deal, [row.copy() for row in schedule], curves, valuation_date, "base")
+    after = _evaluate_schedule(deal, [row.copy() for row in schedule], curves, valuation_date, scenario_id)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "metric_label": METRIC_LABEL,
+        "market": curves.to_dict(),
+        **_comparison(before, after, ()),
         "before": before,
         "after": after,
     }

@@ -138,19 +138,28 @@
         <section class="panel plot" aria-labelledby="payments-title">
           <h2 id="payments-title">График платежей</h2>
           <p class="meta" id="payments-caption"></p>
-          <div class="legend" aria-hidden="true">
+          <div class="legend" id="payment-legend" aria-hidden="true">
             <span><i class="swatch principal"></i>Тело долга</span>
             <span><i class="swatch interest"></i>Проценты</span>
             <span id="outline-key"><i class="swatch outline"></i>Исходные платежи светлее</span>
           </div>
           <canvas id="payments-chart" role="img" aria-label="Суммы тела и процентов по датам платежей. Точные значения в таблице платежей."></canvas>
-          <details>
+          <details id="regular-payments">
             <summary>Таблица платежей до и после</summary>
             <div class="table-scroll" tabindex="0" aria-label="Таблица платежей до и после">
               <table>
                 <thead><tr><th rowspan="2" scope="col">Дата</th><th scope="colgroup" colspan="3">До</th><th scope="colgroup" colspan="3">После</th></tr>
                 <tr><th scope="col">Тело</th><th scope="col">Проценты</th><th scope="col">Платёж</th><th scope="col">Тело</th><th scope="col">Проценты</th><th scope="col">Платёж</th></tr></thead>
                 <tbody id="payments-table"></tbody>
+              </table>
+            </div>
+          </details>
+          <details id="team1-payments" hidden>
+            <summary>Будущие платежи команды 1 и их оценки</summary>
+            <div class="table-scroll" tabindex="0" aria-label="Готовый график и приведённая стоимость каждого платежа">
+              <table>
+                <thead><tr><th scope="col">Дата</th><th scope="col">Плановое тело</th><th scope="col">Проценты</th><th scope="col">Досрочное</th><th scope="col">Субсидия</th><th scope="col">Закрытие</th><th scope="col">Платёж</th><th scope="col">PV базы</th><th scope="col">PV сценария</th></tr></thead>
+                <tbody id="team1-payments-table"></tbody>
               </table>
             </div>
           </details>
@@ -195,7 +204,7 @@
     <section class="panel sources" id="sources" aria-labelledby="sources-title" hidden>
       <h2 id="sources-title">Источники и сверка</h2>
       <dl id="source-grid"></dl>
-      <p class="meta">Для сверки с командой 1 нужны контрольный график сделки и правила расчёта.</p>
+      <p class="meta">Для сверки оценки готового графика нужна контрольная PV команды 1 на ту же дату и по тем же кривым.</p>
       <div class="source-links">
         <a href="/reference/sprint3.csv">Журнал спринта 3 (CSV)</a>
         <a href="/reference/sprint2.json">Контроль спринта 2 (JSON)</a>

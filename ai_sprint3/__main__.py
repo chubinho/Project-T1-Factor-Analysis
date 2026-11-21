@@ -14,7 +14,8 @@ from zipfile import BadZipFile
 from openpyxl.utils.exceptions import InvalidFileException
 
 from de_sprint3.generator import generate
-from ml_sprint3.analysis import SCHEMA_VERSION, compare
+from de_sprint3.team1_payments import Team1Schedule, load_team1_payments
+from ml_sprint3.analysis import SCHEMA_VERSION, compare, compare_ready_payments
 from ml_sprint3.curves import Curve, CurveSet, SCENARIO_ROWS, load_irrbb_workbook
 from ml_sprint3.deal import DAY_COUNTS, PAYMENT_TYPES, Deal, build_schedule, finite_number, parse_date
 
@@ -135,7 +136,8 @@ def generate_deals(config: dict) -> list[dict]:
 
 
 class Dashboard:
-    def __init__(self, deals: list[Deal], curves: CurveSet, market: dict, valuation_date: date) -> None:
+    def __init__(self, deals: list[Deal], curves: CurveSet, market: dict, valuation_date: date, *,
+                 team1: list[Team1Schedule] | None = None) -> None:
         self.deals = {deal.deal_id: deal for deal in deals}
         if len(self.deals) != len(deals):
             raise ValueError("ID сделок должны быть уникальными.")
@@ -143,6 +145,11 @@ class Dashboard:
             raise ValueError("Валюта каждой сделки должна совпадать с валютой кривых.")
         if curves.as_of and curves.as_of != valuation_date:
             raise ValueError("Дата среза кривых должна совпадать с датой оценки.")
+        self.team1 = {f"team1:{item.deal_id}": item for item in team1 or []}
+        if any(item.currency != curves.currency for item in self.team1.values()):
+            raise ValueError("Валюта графиков команды 1 должна совпадать с валютой кривых.")
+        if self.deals.keys() & self.team1.keys():
+            raise ValueError("Идентификаторы готовых графиков пересекаются с параметрами сделок.")
         self.curves = curves
         self.market = market
         self.valuation_date = valuation_date
@@ -160,6 +167,7 @@ class Dashboard:
         )
         return {
             "deals": [deal.to_dict() for deal in self.deals.values()],
+            "team1_deals": [item.describe(self.valuation_date) for item in self.team1.values()],
             "generator_config": json.loads(GENERATOR_CONFIG.read_text(encoding="utf-8")),
             "max_generated_deals": MAX_GENERATED_DEALS,
             "payment_types": PAYMENT_TYPES,
@@ -171,10 +179,17 @@ class Dashboard:
         deal_id, payment_type, day_count, scenario = (
             query.get(key, [""])[0] for key in ("deal", "payment_type", "day_count", "scenario")
         )
-        if generated_deal is None and deal_id not in self.deals:
+        imported = self.team1.get(deal_id) if generated_deal is None else None
+        if generated_deal is None and imported is None and deal_id not in self.deals:
             raise ValueError("Выберите сделку из загруженного набора.")
         if scenario not in self.scenarios:
             raise ValueError(MISSING_SCENARIO)
+        if imported is not None:
+            result = compare_ready_payments(
+                imported.describe(self.valuation_date), imported.rows, self.curves, self.valuation_date, scenario,
+            )
+            result["market"] = self.market
+            return result
         if payment_type not in PAYMENT_TYPES or day_count not in DAY_COUNTS:
             raise ValueError("Выберите поддерживаемый тип платежа и базу начисления.")
         deal = generated_deal if generated_deal is not None else self.deals[deal_id]
@@ -256,11 +271,17 @@ def main() -> None:
     sources = parser.add_mutually_exclusive_group()
     sources.add_argument("--curves", type=Path, help="Книга IRRBB команды 2 в формате XLSX")
     sources.add_argument("--market", type=Path, help="JSON результата ML с кривыми в поле market")
-    parser.add_argument("--valuation-date", type=parse_date, default="2026-11-20", help="Дата оценки YYYY-MM-DD")
+    parser.add_argument("--valuation-date", type=parse_date, help="Дата оценки YYYY-MM-DD")
     parser.add_argument("--curve-date", type=parse_date, help="Подтверждённая дата среза YYYY-MM-DD")
+    parser.add_argument("--team1-payments", type=Path, help="Готовый payments.csv команды 1")
+    parser.add_argument("--team1-currency", help="Валюта готового графика, например RUB")
+    parser.add_argument("--team1-demo", action="store_true", help="Отметить учебную валюту и дату оценки")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
 
+    if args.team1_payments and not (args.team1_currency and args.valuation_date):
+        parser.error("Для готового графика укажите --team1-currency и --valuation-date.")
+    valuation_date = args.valuation_date or date(2026, 11, 20)
     try:
         deals = load_deals(args.deals or CONTROL_DEAL)
         if args.curves:
@@ -268,7 +289,8 @@ def main() -> None:
             market = curves.to_dict()
         else:
             curves, market = load_snapshot(args.market or REFERENCE / "results.json", args.curve_date)
-        dashboard = Dashboard(deals, curves, market, args.valuation_date)
+        team1 = load_team1_payments(args.team1_payments, args.team1_currency, demo=args.team1_demo) if args.team1_payments else None
+        dashboard = Dashboard(deals, curves, market, valuation_date, team1=team1)
         server = ThreadingHTTPServer(("127.0.0.1", args.port), partial(Handler, dashboard=dashboard))
     except (ValueError, KeyError, TypeError, OSError, BadZipFile, InvalidFileException) as error:
         parser.error(str(error))
