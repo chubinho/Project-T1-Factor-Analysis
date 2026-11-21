@@ -14,6 +14,7 @@ from ml_sprint3.curves import load_irrbb_workbook
 from ml_sprint3.deal import Deal, build_schedule, parse_date
 from .generator import generate
 from .team1 import normalize_schedule
+from .team1_events import EVENT_FIELDS, PAYMENT_FIELDS, normalize_events
 
 
 def write_json(path, data):
@@ -71,6 +72,10 @@ def main():
     team1.add_argument("--currency", default="RUB")
     team1.add_argument("--start-date", type=parse_date, required=True)
     team1.add_argument("--output", type=Path, required=True)
+    events = commands.add_parser("team1-events", help="Загрузить общий TXT графиков команды 1")
+    events.add_argument("--source", type=Path, required=True)
+    events.add_argument("--source-version", required=True)
+    events.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.output.exists():
@@ -86,6 +91,11 @@ def main():
                     raise ValueError("Подтверждённая дата кривой должна совпадать с датой оценки")
                 market = load_irrbb_workbook(args.source, args.curve_date).to_dict()
                 write_json(staging / "market.json", {"schema_version": SCHEMA_VERSION, "market": market})
+            elif args.command == "team1-events":
+                events, payments, report = normalize_events(args.source, args.source_version)
+                write_csv(staging / "events.csv", EVENT_FIELDS, events)
+                write_csv(staging / "payments.csv", PAYMENT_FIELDS, payments)
+                write_json(staging / "validation.json", report)
             else:
                 schedule = normalize_schedule(args.source, args.deal_id, args.currency,
                                               args.source_version, args.start_date)
@@ -94,6 +104,8 @@ def main():
     except (OSError, ValueError, KeyError, TypeError, OverflowError, BadZipFile, InvalidFileException) as error:
         parser.error(str(error))
     print(f"Готово: {args.output}")
+    if args.command == "team1-events" and report["balance_differences_above_one_cent"]:
+        parser.exit(1, "Обнаружены расхождения остатков больше 0,01. См. validation.json.\n")
 
 
 if __name__ == "__main__":
