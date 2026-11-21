@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "demo_deal_id": "S3-DEMO-001",
+  "demo_source": "ml_sprint3/demo_deal.json",
+  "total_deals": 13,
+  "fixed_deals": 10,
+  "floating_deals": 3,
+  "config": {
+    "count": 12,
+    "seed": 20261121,
+    "principal_rub": [
+      300000,
+      2500000
+    ],
+    "annual_rate": [
+      0.08,
+      0.19
+    ],
+    "start_date": "2026-11-20",
+    "payment_interval_months": 1,
+    "term_months_weights": {
+      "12": 1,
+      "24": 2,
+      "36": 3,
+      "60": 1
+    },
+    "payment_type_weights": {
+      "ANN": 4,
+      "RGM": 3,
+      "SIMPLE": 2
+    },
+    "day_count_weights": {
+      "ACT/365": 4,
+      "ACT/360": 1
+    },
+    "rate_type_weights": {
+      "FIXED": 4,
+      "FLOAT": 1
+    },
+    "float_rate": {
+      "index": "KEY_RATE_RU",
+      "spread": 0.02,
+      "reset_interval_months": 3
+    }
+  }
+}
