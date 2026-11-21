@@ -1,0 +1,13 @@
+{
+  "deal_id": "S3-DEMO-001",
+  "source": "Синтетическая контрольная сделка ML для спринта 3",
+  "principal": 1000000,
+  "currency": "RUB",
+  "start_date": "2026-11-20",
+  "term_months": 36,
+  "payment_interval_months": 1,
+  "payment_type": "ANN",
+  "day_count": "ACT/365",
+  "rate_type": "FIXED",
+  "annual_rate": 0.12
+}
