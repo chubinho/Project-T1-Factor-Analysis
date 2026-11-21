@@ -8,8 +8,7 @@
 
 ```powershell
 python -m pip install -r requirements-ml.txt
-$curves = "$env:USERPROFILE/Downloads/Telegram Desktop/IRRBB_stress_curves.xlsx"
-python -m ml_sprint3 demo --deal ml_sprint3/demo_deal.json --curves $curves --valuation-date 2026-11-20 --output outputs/ml_sprint3_demo
+python -m ml_sprint3 demo --deal ml_sprint3/demo_deal.json --curves inputs/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20 --output outputs/ml_sprint3_demo
 python -m unittest discover -s tests
 ```
 

@@ -27,14 +27,14 @@
 
 ```sh
 python3 -m pip install -r requirements-ml.txt
-python3 -m de_sprint3 generate --output /tmp/de-sprint3-new
-python3 -m ml_sprint3 demo --deal outputs/de_sprint3/demo_deal.json --curves ~/Downloads/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20 --output /tmp/ml-sprint3-new
+python3 -m de_sprint3 generate --output outputs/de_run
+python3 -m ml_sprint3 demo --deal outputs/de_sprint3/demo_deal.json --curves inputs/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20 --output outputs/ml_run
 ```
 
-Для своего набора скопируйте `de_sprint3/default_config.json`, поменяйте параметры и передайте путь через `--config`. Каталог результата должен быть новым. На ветке с дашбордом AI команда запуска такова:
+Для своего набора скопируйте `de_sprint3/default_config.json`, поменяйте параметры и передайте путь через `--config`. Каталог результата должен быть новым. Дашборд на фиксированном наборе запускается так:
 
 ```sh
-python3 -m ai_sprint3 --deals outputs/de_sprint3/deals_fixed.csv --curves ~/Downloads/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20
+python3 -m ai_sprint3 --deals outputs/de_sprint3/deals_fixed.csv --curves inputs/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20
 ```
 
 ## Входы команд 1 и 2
@@ -42,14 +42,14 @@ python3 -m ai_sprint3 --deals outputs/de_sprint3/deals_fixed.csv --curves ~/Down
 Книга команды 2 `IRRBB_stress_curves.xlsx` загружена штатным загрузчиком ML. Он проверяет 19 возрастающих сроков в годах, метки, базу, шесть стрессов и равенство «база + сдвиг» с учётом floor. Валюта RUB следует из источника ОФЗ. Ставки переведены из процентов в доли. Нормализованный файл `outputs/de_sprint3/market.json` включает лист, диапазоны, имя источника и SHA-256 как идентификатор версии. Дата среза книги и изменение ключевой ставки в ней не подтверждены. Поля `as_of` и `key_rate_shock_pp` оставлены пустыми. +4 п.п. в `parallel_up` относится к кривой доходности. Дата 20.11.2026 используется как дата демонстрационной оценки. Если дата среза подтвердится, передайте `--curve-date YYYY-MM-DD`. Команда проверит совпадение с датой оценки.
 
 ```sh
-python3 -m de_sprint3 curves --source ~/Downloads/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20 --output /tmp/de-market-new
+python3 -m de_sprint3 curves --source inputs/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20 --output outputs/de_market_run
 python3 -m ai_sprint3 --deals outputs/de_sprint3/deals_fixed.csv --market outputs/de_sprint3/market.json
 ```
 
 Для графика команды 1 подготовлен формат UTF-8 CSV с обязательными полями `deal_id,currency,payment_date,principal,interest,payment`. При необходимости добавьте `prepayment` и `subsidy` отдельными компонентами поступления. Если соответствующего столбца нет, компонент равен нулю. В пределах файла должна быть одна сделка и одна валюта. Даты должны строго возрастать после начала начисления. Суммы должны быть неотрицательными с точностью до копейки. Поле `payment` равно сумме тела, процентов и отдельно указанных компонентов. Если реальные данные используют другую трактовку субсидий или досрочных платежей, сначала следует согласовать преобразование, чтобы не посчитать их дважды.
 
 ```sh
-python3 -m de_sprint3 team1 --source docs/sprint3/examples/team1-example.csv --source-version training-v1 --deal-id TEAM1-SAMPLE --start-date 2026-11-20 --output /tmp/de-team1-new
+python3 -m de_sprint3 team1 --source docs/sprint3/examples/team1-example.csv --source-version training-v1 --deal-id TEAM1-SAMPLE --start-date 2026-11-20 --output outputs/team1_csv_run
 ```
 
 Результат `schedule.json` содержит проверенные строки, происхождение и версию. Пример `TEAM1-SAMPLE` учебный.
@@ -59,7 +59,7 @@ python3 -m de_sprint3 team1 --source docs/sprint3/examples/team1-example.csv --s
 Файл `result.txt` содержит несколько типов событий на одну дату сделки. Его можно загрузить напрямую, без ручного преобразования в CSV.
 
 ```sh
-python3 -m de_sprint3 team1-events --source ~/Downloads/result.txt --source-version received-2026-11-21 --output /tmp/de-team1-result
+python3 -m de_sprint3 team1-events --source inputs/result.txt --source-version received-2026-11-21 --output outputs/team1_run
 ```
 
 - `events.csv` хранит все исходные события с датами ISO, типом, остатком, счётчиком дней и номером строки источника. Значение `repricing` сохранено отдельно без преобразования единиц.

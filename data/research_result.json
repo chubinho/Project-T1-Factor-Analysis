@@ -1,6 +1,6 @@
 {
   "source": {
-    "path": "/Users/andrey/Downloads/annuity-payment-schedule (1).xlsx",
+    "path": "inputs/annuity-payment-schedule.xlsx",
     "sha256": "06f90aee9b2b6edf209f6a64ce662115b4a11ab4ca7ae285f380d817d3402ceb"
   },
   "profile": {
@@ -570,7 +570,7 @@
       "2022-10-22"
     ],
     "source": {
-      "path": "/Users/andrey/Downloads/annuity-payment-schedule (1).xlsx",
+      "path": "inputs/annuity-payment-schedule.xlsx",
       "sha256": "06f90aee9b2b6edf209f6a64ce662115b4a11ab4ca7ae285f380d817d3402ceb",
       "cells": [
         "График платежей!B10:F11",
@@ -657,13 +657,13 @@
       "Это сценарный опыт, не наблюдаемая история банковского ЭК."
     ],
     "source": {
-      "path": "/Users/andrey/Downloads/annuity-payment-schedule (1).xlsx",
+      "path": "inputs/annuity-payment-schedule.xlsx",
       "sha256": "06f90aee9b2b6edf209f6a64ce662115b4a11ab4ca7ae285f380d817d3402ceb"
     }
   },
   "payment_types": {
     "source": {
-      "path": "/Users/andrey/Downloads/annuity-payment-schedule (1).xlsx",
+      "path": "inputs/annuity-payment-schedule.xlsx",
       "sha256": "06f90aee9b2b6edf209f6a64ce662115b4a11ab4ca7ae285f380d817d3402ceb"
     },
     "parameters": {
