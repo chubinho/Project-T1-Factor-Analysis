@@ -13,13 +13,17 @@ from zipfile import BadZipFile
 
 from openpyxl.utils.exceptions import InvalidFileException
 
+from de_sprint3.generator import generate
 from ml_sprint3.analysis import SCHEMA_VERSION, compare
 from ml_sprint3.curves import Curve, CurveSet, SCENARIO_ROWS, load_irrbb_workbook
-from ml_sprint3.deal import DAY_COUNTS, PAYMENT_TYPES, Deal, finite_number, parse_date
+from ml_sprint3.deal import DAY_COUNTS, PAYMENT_TYPES, Deal, build_schedule, finite_number, parse_date
 
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTROL_DEAL = ROOT / "ml_sprint3/demo_deal.json"
+GENERATOR_CONFIG = ROOT / "de_sprint3/default_config.json"
+MAX_GENERATED_DEALS = 500
+MAX_GENERATED_PERIODS = 60_000
 REFERENCE = ROOT / "outputs/ml_sprint3"
 WEB = Path(__file__).with_name("web")
 ASSETS = {
@@ -27,6 +31,7 @@ ASSETS = {
     "/dashboard.css": (WEB / "dashboard.css", "text/css; charset=utf-8"),
     "/dashboard.js": (WEB / "dashboard.js", "text/javascript; charset=utf-8"),
     "/charts.js": (WEB / "charts.js", "text/javascript; charset=utf-8"),
+    "/generator.js": (WEB / "generator.js", "text/javascript; charset=utf-8"),
     "/reference/sprint3.csv": (REFERENCE / "journal.csv", "text/csv; charset=utf-8"),
     "/reference/sprint2.json": (ROOT / "outputs/ml_sprint2/baseline.json", "application/json"),
 }
@@ -105,6 +110,30 @@ def load_snapshot(path: Path, curve_date: date | None) -> tuple[CurveSet, dict]:
     return curves, market
 
 
+def generate_deals(config: dict) -> list[dict]:
+    count = config["count"]
+    if type(count) is not int or not 1 <= count <= MAX_GENERATED_DEALS:
+        raise ValueError(f"За один запуск можно создать от 1 до {MAX_GENERATED_DEALS} сделок.")
+    interval = config["payment_interval_months"]
+    if type(interval) is not int or interval < 1:
+        raise ValueError("Интервал платежей должен быть целым положительным числом месяцев.")
+    longest = max(
+        (int(term) for term, weight in config["term_months_weights"].items() if weight > 0),
+        default=0,
+    )
+    if count * ((longest + interval - 1) // interval) > MAX_GENERATED_PERIODS:
+        raise ValueError("Уменьшите количество сделок или максимальный срок для этого запуска.")
+
+    deals = generate(config)
+    for deal in deals:
+        if deal["rate_type"] == "FIXED":
+            try:
+                build_schedule(Deal.from_dict(deal))
+            except ValueError as error:
+                raise ValueError(f"{deal['deal_id']}: не удалось построить график. {error}") from error
+    return deals
+
+
 class Dashboard:
     def __init__(self, deals: list[Deal], curves: CurveSet, market: dict, valuation_date: date) -> None:
         self.deals = {deal.deal_id: deal for deal in deals}
@@ -131,22 +160,24 @@ class Dashboard:
         )
         return {
             "deals": [deal.to_dict() for deal in self.deals.values()],
+            "generator_config": json.loads(GENERATOR_CONFIG.read_text(encoding="utf-8")),
+            "max_generated_deals": MAX_GENERATED_DEALS,
             "payment_types": PAYMENT_TYPES,
             "day_counts": DAY_COUNTS,
             "scenarios": scenarios,
         }
 
-    def calculate(self, query: dict[str, list[str]]) -> dict:
+    def calculate(self, query: dict[str, list[str]], *, generated_deal: Deal | None = None) -> dict:
         deal_id, payment_type, day_count, scenario = (
             query.get(key, [""])[0] for key in ("deal", "payment_type", "day_count", "scenario")
         )
-        if deal_id not in self.deals:
+        if generated_deal is None and deal_id not in self.deals:
             raise ValueError("Выберите сделку из загруженного набора.")
         if scenario not in self.scenarios:
             raise ValueError(MISSING_SCENARIO)
         if payment_type not in PAYMENT_TYPES or day_count not in DAY_COUNTS:
             raise ValueError("Выберите поддерживаемый тип платежа и базу начисления.")
-        deal = self.deals[deal_id]
+        deal = generated_deal if generated_deal is not None else self.deals[deal_id]
         schedule_changed = (payment_type, day_count) != (deal.payment_type, deal.day_count)
         result = compare(
             deal, self.curves, self.valuation_date, scenario,
@@ -192,6 +223,31 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(result)
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
+
+    def do_POST(self) -> None:
+        path = urlsplit(self.path).path
+        if path not in ("/api/generate", "/api/compare"):
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        try:
+            if self.headers.get_content_type() != "application/json":
+                raise ValueError("Ожидаются параметры в формате JSON.")
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 1 <= length <= 16_384:
+                raise ValueError("Параметры пусты или занимают слишком много места.")
+            payload = json.loads(self.rfile.read(length))
+            if not isinstance(payload, dict):
+                raise ValueError("Ожидается объект с параметрами.")
+            if path == "/api/generate":
+                result = {"deals": generate_deals(payload)}
+            else:
+                deal = Deal.from_dict(payload["deal"])
+                query = {key: [payload[key]] for key in ("payment_type", "day_count", "scenario")}
+                result = self.dashboard.calculate(query, generated_deal=deal)
+        except (ValueError, TypeError, KeyError, AttributeError, OverflowError) as error:
+            self.send_json({"error": str(error)}, HTTPStatus.UNPROCESSABLE_ENTITY)
+        else:
+            self.send_json(result)
 
 
 def main() -> None:

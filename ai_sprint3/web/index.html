@@ -24,7 +24,10 @@
     <section class="panel controls" aria-labelledby="inputs-title" id="controls">
       <div class="panel-heading">
         <h2 id="inputs-title">Параметры расчёта</h2>
-        <button type="button" id="reset" disabled>Вернуть исходные параметры</button>
+        <div class="button-row">
+          <button type="button" class="primary" id="open-generator" disabled>Сгенерировать сделки</button>
+          <button type="button" id="reset" disabled>Вернуть исходные параметры</button>
+        </div>
       </div>
       <fieldset id="inputs" disabled>
         <label>Сделка<select id="deal"></select></label>
@@ -34,6 +37,80 @@
       </fieldset>
       <p class="meta" id="deal-summary"></p>
     </section>
+
+    <dialog id="generator-dialog" class="generator-dialog" aria-labelledby="generator-title">
+      <div class="generator-content">
+        <div class="panel-heading">
+          <h2 id="generator-title">Генерация синтетических сделок</h2>
+          <button type="button" id="close-generator">Закрыть</button>
+        </div>
+        <form id="generator-form">
+          <fieldset class="generator-grid" id="generator-parameters">
+            <legend>Параметры набора</legend>
+            <label>Число сделок<input name="count" type="number" min="1" step="1" required></label>
+            <label>Начальное число (seed)<input name="seed" type="number" step="1" required></label>
+            <label>Сумма от, ₽<input name="principal_min" type="number" min="1" step="1" required></label>
+            <label>Сумма до, ₽<input name="principal_max" type="number" min="1" step="1" required></label>
+            <label>Годовая ставка от, %<input name="rate_min" type="number" min="0" step="any" required></label>
+            <label>Годовая ставка до, %<input name="rate_max" type="number" min="0" step="any" required></label>
+            <label>Начало начисления<input name="start_date" type="date" required></label>
+            <label>Интервал платежей, мес.<input name="payment_interval_months" type="number" min="1" step="1" required></label>
+          </fieldset>
+
+          <p class="meta">Веса задают относительные шансы. Вес 0 исключает вариант. Предзаполненные значения учебные.</p>
+          <div class="generator-distributions">
+            <fieldset>
+              <legend>Сроки</legend>
+              <div class="generator-term generator-term-head" aria-hidden="true">
+                <span>Месяцы</span><span>Вес</span>
+              </div>
+              <div id="generator-terms"></div>
+              <button type="button" id="add-generator-term">Добавить срок</button>
+            </fieldset>
+            <fieldset>
+              <legend>Типы платежей</legend>
+              <div class="generator-weights" id="generator-payment-weights"></div>
+            </fieldset>
+            <fieldset>
+              <legend>Типы ставки</legend>
+              <div class="generator-weights" id="generator-rate-weights"></div>
+            </fieldset>
+          </div>
+
+          <details class="generator-extra">
+            <summary>База начисления и пересмотр ставки</summary>
+            <div class="generator-distributions">
+              <fieldset>
+                <legend>Вес базы начисления</legend>
+                <div class="generator-weights" id="generator-day-weights"></div>
+              </fieldset>
+              <fieldset>
+                <legend>Плавающая ставка</legend>
+                <div class="generator-weights">
+                  <label>Индекс<input name="float_index" type="text" maxlength="80" required></label>
+                  <label>Надбавка, п.п.<input name="float_spread" type="number" step="any" required></label>
+                  <label>Интервал пересмотра, мес.<input name="float_reset" type="number" min="1" step="1" required></label>
+                </div>
+              </fieldset>
+            </div>
+          </details>
+
+          <div class="button-row generator-actions">
+            <button type="submit" class="primary" id="generate">Сгенерировать</button>
+            <button type="button" id="use-generated" hidden>К сравнению</button>
+          </div>
+          <p class="notice error" id="generator-error" role="alert" hidden></p>
+          <p class="notice" id="generator-status" role="status" hidden></p>
+        </form>
+
+        <div class="table-scroll" tabindex="0" id="generator-results" aria-label="Сгенерированные сделки" hidden>
+          <table>
+            <thead><tr><th scope="col">Сделка</th><th scope="col">Сумма</th><th scope="col">Срок, мес.</th><th scope="col">Тип платежа</th><th scope="col">База</th><th scope="col">Годовая ставка</th><th scope="col">Тип ставки</th></tr></thead>
+            <tbody id="generator-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </dialog>
 
     <p class="notice" id="status" role="status">Загружаем параметры расчёта…</p>
     <p class="notice error" id="error" role="alert" hidden></p>

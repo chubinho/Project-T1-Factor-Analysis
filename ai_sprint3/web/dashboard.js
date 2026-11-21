@@ -1,4 +1,5 @@
 import { drawCurves, drawPayments } from './charts.js';
+import { initGenerator } from './generator.js';
 
 const byId = id => document.getElementById(id);
 const put = (id, text) => { byId(id).textContent = text; };
@@ -11,6 +12,8 @@ const curveChart = byId('curves-chart');
 const payments = { ANN: 'ANN · аннуитет', RGM: 'RGM · равные доли тела', SIMPLE: 'SIMPLE · тело в конце срока' };
 const dayCountLabel = id => id === 'ACT/365' ? 'ACT/365 Fixed' : id;
 const dayCountOption = id => id === 'ACT/ACT ISDA' ? 'ACT/ACT ISDA · 365/366' : dayCountLabel(id);
+const generatedGroup = document.createElement('optgroup');
+generatedGroup.label = 'Сгенерированные сделки';
 const scenarioLabels = {
   base: 'Без стресса', parallel_up: 'Параллельный сдвиг вверх', parallel_down: 'Параллельный сдвиг вниз',
   steepener: 'Увеличение наклона', flattener: 'Уменьшение наклона',
@@ -24,6 +27,7 @@ const formatDate = iso => dateFormat.format(new Date(iso));
 const signal = value => value < -.005 ? 'negative' : value >= .005 ? 'positive' : '';
 
 let deals;
+let generatedDeals = new Map();
 let request;
 let draw = () => {};
 
@@ -200,8 +204,22 @@ function show(result) {
   draw();
 }
 
+function addGeneratedDeals(rows) {
+  generatedDeals = new Map(rows.map(deal => [`generated:${deal.deal_id}`, deal]));
+  generatedGroup.replaceChildren(...Array.from(generatedDeals, ([key, deal]) =>
+    new Option(deal.deal_id, key)));
+  if (rows.length) {
+    dealInput.append(generatedGroup);
+    dealInput.value = generatedDeals.keys().next().value;
+  } else {
+    generatedGroup.remove();
+    if (!dealInput.value) dealInput.selectedIndex = 0;
+  }
+  return updateDeal();
+}
+
 function updateDeal() {
-  const deal = deals.get(dealInput.value);
+  const deal = generatedDeals.get(dealInput.value) ?? deals.get(dealInput.value);
   const amount = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: deal.currency }).format(deal.principal);
   put('deal-summary', `${deal.source} · ${amount} · ${rates.format(deal.annual_rate)} годовых, фиксированная ставка`);
   paymentInput.value = deal.payment_type;
@@ -220,16 +238,23 @@ async function update() {
   request?.abort();
   const controller = new AbortController();
   request = controller;
-  const params = new URLSearchParams({
-    deal: dealInput.value, payment_type: paymentInput.value, day_count: dayCountInput.value, scenario: scenarioInput.value,
-  });
+  const parameters = {
+    payment_type: paymentInput.value, day_count: dayCountInput.value, scenario: scenarioInput.value,
+  };
+  const generated = generatedDeals.get(dealInput.value);
   put('status', 'Обновляем расчёт…');
   byId('status').hidden = false;
   byId('error').hidden = true;
   byId('results').hidden = true;
   byId('sources').hidden = true;
   try {
-    const result = await getJson(`/api/compare?${params}`, { signal: controller.signal });
+    const result = generated
+      ? await getJson('/api/compare', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deal: generated, ...parameters }), signal: controller.signal,
+        })
+      : await getJson(`/api/compare?${new URLSearchParams({ deal: dealInput.value, ...parameters })}`,
+          { signal: controller.signal });
     if (controller.signal.aborted) return;
     show(result);
     byId('status').hidden = true;
@@ -250,6 +275,16 @@ async function init() {
     dealInput.addEventListener('change', updateDeal);
     for (const select of [paymentInput, dayCountInput, scenarioInput]) select.addEventListener('change', update);
     byId('reset').addEventListener('click', updateDeal);
+    const labels = {
+      payments: Object.fromEntries(options.payment_types.map(type => [type, payments[type]])),
+      dayCounts: Object.fromEntries(Object.keys(options.day_counts).map(basis => [basis, dayCountOption(basis)])),
+    };
+    initGenerator(options.generator_config, options.max_generated_deals, labels, async config => {
+      const result = await getJson('/api/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config),
+      });
+      return result.deals;
+    }, addGeneratedDeals);
     const observer = new ResizeObserver(() => draw());
     observer.observe(paymentChart);
     observer.observe(curveChart);

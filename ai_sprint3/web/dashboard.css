@@ -101,3 +101,65 @@ th:first-child, td:first-child { text-align: left; }
   .sources dl { grid-template-columns: 1fr; gap: .2rem; }
   .sources dd { margin-bottom: .45rem; }
 }
+
+.button-row { display: flex; flex-wrap: wrap; gap: .55rem; }
+button.primary { color: #fff; background: var(--blue); border-color: var(--blue); }
+button.primary:hover:enabled { background: #193c86; }
+
+.generator-dialog {
+  width: min(100% - 2rem, 62rem);
+  max-height: calc(100% - 2rem);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: .85rem;
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 18px 70px #12233c55;
+}
+.generator-dialog::backdrop { background: #12233c80; }
+.generator-content { padding: 1.2rem; }
+.generator-dialog fieldset {
+  display: block;
+  min-inline-size: 0;
+  margin: .75rem 0;
+  padding: .65rem .75rem .8rem;
+  border: 1px solid var(--border);
+  border-radius: .5rem;
+}
+.generator-dialog fieldset.generator-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.generator-dialog legend { padding-inline: .25rem; font-size: .875rem; font-weight: 700; }
+.generator-dialog input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.35rem;
+  margin-top: .2rem;
+  padding: .35rem .45rem;
+  border: 1px solid #b9c8da;
+  border-radius: .4rem;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-weight: 450;
+}
+.generator-distributions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.generator-extra .generator-distributions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.generator-weights { display: grid; gap: .45rem; }
+.generator-term { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .35rem; align-items: end; margin-bottom: .35rem; }
+.generator-term button { min-height: 2.35rem; padding-inline: .6rem; }
+.generator-term-head { grid-template-columns: repeat(2, minmax(0, 1fr)) 2.05rem; font-size: .8rem; color: var(--muted); }
+.generator-actions { margin-top: .85rem; }
+.generator-dialog .table-scroll { max-height: 18rem; }
+
+@media (max-width: 50rem) {
+  .generator-dialog fieldset.generator-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .generator-distributions { grid-template-columns: 1fr; gap: 0; }
+}
+@media (max-width: 31rem) {
+  .generator-content { padding: .75rem; }
+  .generator-dialog fieldset.generator-grid,
+  .generator-extra .generator-distributions { grid-template-columns: 1fr; }
+}
