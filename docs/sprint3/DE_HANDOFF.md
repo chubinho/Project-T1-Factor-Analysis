@@ -36,3 +36,20 @@ python3 -m ml_sprint3 demo --deal outputs/de_sprint3/demo_deal.json --curves ~/D
 ```sh
 python3 -m ai_sprint3 --deals outputs/de_sprint3/deals_fixed.csv --curves ~/Downloads/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20
 ```
+
+## Входы команд 1 и 2
+
+Книга команды 2 `IRRBB_stress_curves.xlsx` загружена штатным загрузчиком ML. Он проверяет 19 возрастающих сроков в годах, метки, базу, шесть стрессов и равенство «база + сдвиг» с учётом floor. Валюта RUB следует из источника ОФЗ. Ставки переведены из процентов в доли. Нормализованный файл `outputs/de_sprint3/market.json` включает лист, диапазоны, имя источника и SHA-256 как идентификатор версии. Дата среза книги и изменение ключевой ставки в ней не подтверждены. Поля `as_of` и `key_rate_shock_pp` оставлены пустыми. +4 п.п. в `parallel_up` относится к кривой доходности. Дата 20.11.2026 используется как дата демонстрационной оценки. Если дата среза подтвердится, передайте `--curve-date YYYY-MM-DD`. Команда проверит совпадение с датой оценки.
+
+```sh
+python3 -m de_sprint3 curves --source ~/Downloads/IRRBB_stress_curves.xlsx --valuation-date 2026-11-20 --output /tmp/de-market-new
+python3 -m ai_sprint3 --deals outputs/de_sprint3/deals_fixed.csv --market outputs/de_sprint3/market.json
+```
+
+Для графика команды 1 подготовлен формат UTF-8 CSV с обязательными полями `deal_id,currency,payment_date,principal,interest,payment`. При необходимости добавьте `prepayment` и `subsidy` отдельными компонентами поступления. Если соответствующего столбца нет, компонент равен нулю. В пределах файла должна быть одна сделка и одна валюта. Даты должны строго возрастать после начала начисления. Суммы должны быть неотрицательными с точностью до копейки. Поле `payment` равно сумме тела, процентов и отдельно указанных компонентов. Если реальные данные используют другую трактовку субсидий или досрочных платежей, сначала следует согласовать преобразование, чтобы не посчитать их дважды.
+
+```sh
+python3 -m de_sprint3 team1 --source docs/sprint3/examples/team1-example.csv --source-version training-v1 --deal-id TEAM1-SAMPLE --start-date 2026-11-20 --output /tmp/de-team1-new
+```
+
+Результат `schedule.json` содержит проверенные строки, происхождение и версию. Пример `TEAM1-SAMPLE` учебный. Реальный график и правила команды 1 пока не получены. Текущий расчёт ML строит график из параметров сделки. Сверка с внешним графиком требует реального примера и согласованных правил.

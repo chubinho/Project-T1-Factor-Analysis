@@ -5,9 +5,15 @@ import csv
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from zipfile import BadZipFile
 
-from ml_sprint3.deal import Deal, build_schedule
+from openpyxl.utils.exceptions import InvalidFileException
+
+from ml_sprint3.analysis import SCHEMA_VERSION
+from ml_sprint3.curves import load_irrbb_workbook
+from ml_sprint3.deal import Deal, build_schedule, parse_date
 from .generator import generate
+from .team1 import normalize_schedule
 
 
 def write_json(path, data):
@@ -53,6 +59,18 @@ def main():
     dataset = commands.add_parser("generate", help="Выгрузить тестовые сделки")
     dataset.add_argument("--config", type=Path, default=Path(__file__).with_name("default_config.json"))
     dataset.add_argument("--output", type=Path, required=True)
+    curves = commands.add_parser("curves", help="Проверить и нормализовать сценарии IRRBB")
+    curves.add_argument("--source", type=Path, required=True)
+    curves.add_argument("--valuation-date", type=parse_date, required=True)
+    curves.add_argument("--curve-date", type=parse_date, help="Подтверждённая дата кривой")
+    curves.add_argument("--output", type=Path, required=True)
+    team1 = commands.add_parser("team1", help="Проверить и нормализовать CSV графика")
+    team1.add_argument("--source", type=Path, required=True)
+    team1.add_argument("--source-version", required=True)
+    team1.add_argument("--deal-id", required=True)
+    team1.add_argument("--currency", default="RUB")
+    team1.add_argument("--start-date", type=parse_date, required=True)
+    team1.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.output.exists():
@@ -61,9 +79,19 @@ def main():
         with TemporaryDirectory(dir=args.output.parent) as temporary:
             staging = Path(temporary) / "result"
             staging.mkdir()
-            export_dataset(args.config, staging)
+            if args.command == "generate":
+                export_dataset(args.config, staging)
+            elif args.command == "curves":
+                if args.curve_date and args.curve_date != args.valuation_date:
+                    raise ValueError("Подтверждённая дата кривой должна совпадать с датой оценки")
+                market = load_irrbb_workbook(args.source, args.curve_date).to_dict()
+                write_json(staging / "market.json", {"schema_version": SCHEMA_VERSION, "market": market})
+            else:
+                schedule = normalize_schedule(args.source, args.deal_id, args.currency,
+                                              args.source_version, args.start_date)
+                write_json(staging / "schedule.json", schedule)
             staging.rename(args.output)
-    except (OSError, ValueError, KeyError, TypeError, OverflowError) as error:
+    except (OSError, ValueError, KeyError, TypeError, OverflowError, BadZipFile, InvalidFileException) as error:
         parser.error(str(error))
     print(f"Готово: {args.output}")
 
